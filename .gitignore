@@ -1,0 +1,15 @@
+node_modules/
+.afterglow-data/
+.preview-data/
+.setup-cache/
+screenshots/
+.verify-ui
+verification.json
+*.log
+.env
+.env.*
+!.env.example
+
+# Local design inputs are never published
+/replica/
+/reference-frames/

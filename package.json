@@ -1,0 +1,20 @@
+{
+  "name": "afterglow-player",
+  "productName": "Afterglow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "An unpacked Windows YouTube music player with an immersive desktop view.",
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "preview": "node src/preview.cjs",
+    "test": "node --test tests/*.test.cjs",
+    "check": "node scripts/check.cjs"
+  },
+  "dependencies": {
+    "@ghostery/adblocker-electron": "2.20.1",
+    "electron": "45.0.0",
+    "lucide": "0.577.0",
+    "youtubei.js": "18.3.0"
+  }
+}

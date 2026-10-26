@@ -1,0 +1,20 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const os=require('node:os');const path=require('node:path');const http=require('node:http');const {Store}=require('../src/model.cjs');const {createServer}=require('../src/server.cjs');
+test('HTTP boundary rejects cross-origin writes, invalid hosts, arbitrary proxy targets, and file traversal',async t=>{
+  const directory=fs.mkdtempSync(path.join(os.tmpdir(),'afterglow-http-'));
+  const instance=await createServer({store:new Store(directory)});
+  t.after(()=>{instance.close();fs.rmSync(directory,{recursive:true,force:true});});
+  const {origin}=instance;
+  const bootstrap=await fetch(origin+'/api/bootstrap');
+  assert.equal(bootstrap.status,200);
+  assert.equal((await bootstrap.json()).desktop,false);
+  assert.ok(bootstrap.headers.get('content-security-policy').includes("frame-ancestors 'none'"));
+  const forbidden=await fetch(origin+'/api/action',{method:'POST',headers:{Origin:'https://other.example','Content-Type':'application/json','X-Afterglow-Request':'1'},body:JSON.stringify({action:'settings',payload:{volume:1}})});
+  assert.equal(forbidden.status,403);
+  const accepted=await fetch(origin+'/api/action',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json','X-Afterglow-Request':'1'},body:JSON.stringify({action:'settings',payload:{volume:25}})});
+  assert.equal(accepted.status,200);
+  assert.equal((await accepted.json()).settings.volume,25);
+  assert.equal((await fetch(origin+'/artwork?url='+encodeURIComponent('http://127.0.0.1/private'))).status,403);
+  assert.equal((await fetch(origin+'/%2e%2e%5cpackage.json')).status,404);
+  const badHost=await new Promise((resolve,reject)=>{http.get(origin+'/api/health',{headers:{Host:'attacker.example'}},res=>{res.resume();resolve(res.statusCode);}).on('error',reject);});
+  assert.equal(badHost,403);
+});

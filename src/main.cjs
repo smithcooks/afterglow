@@ -169,7 +169,10 @@ const controller={
       return {lines:require('./model.cjs').parseLrc(fs.readFileSync(result.filePaths[0],'utf8')),source:'Local LRC'};
     }
     if(action==='verify-motion'&&process.env.AFTERGLOW_VERIFY_UI==='1'){
-      const {sampleMotion}=require('./verify.cjs');const report=await ui.webContents.executeJavaScript('('+sampleMotion.toString()+')()');
+      const windowState=()=>({visible:win.isVisible(),focused:win.isFocused(),minimized:win.isMinimized(),uiVisible:ui.getVisible(),bounds:win.getBounds(),uiBounds:ui.getBounds()});
+      const windowBefore=windowState();const {sampleMotion}=require('./verify.cjs');const sample=await ui.webContents.executeJavaScript('('+sampleMotion.toString()+')()');
+      const report={...sample,windowBefore,windowAfter:windowState(),gpuFeatures:app.getGPUFeatureStatus()};
+      if([report.windowBefore,report.windowAfter].some(w=>!w.visible||w.minimized||!w.uiVisible))report.sampleStatus='inconclusive';
       fs.mkdirSync(path.join(root,'screenshots'),{recursive:true});fs.writeFileSync(path.join(root,'screenshots/motion-verification.json'),JSON.stringify({at:new Date().toISOString(),layout:store.data.settings.layout,...report},null,2));return report;
     }
     if(action==='verify-inspect'&&process.env.AFTERGLOW_VERIFY_UI==='1'){

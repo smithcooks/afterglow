@@ -88,12 +88,18 @@ async function loadLyrics(track){
 function updateLyrics(p){
   if(!lyrics.lines.length){$('#lyric-stack').hidden=true;$('#lyrics-fallback').hidden=false;$('#lyric-before').textContent='';$('#lyric-after').textContent='';$('#lyrics-panel').classList.toggle('lyric-empty',lyricIndex!==-2);$('#lyric-current').textContent=lyricIndex===-2?(current?.title||'Choose a song'):lyrics.instrumental?'Instrumental':'Lyrics unavailable';if(lyricIndex!==-2)$('#lyric-credit').textContent=lyrics.plain?'Unsynced lyrics available · load an LRC file':'Load an LRC file';return;}
   const adjusted=p+(library.settings.lyricOffset||0);let index=-1;for(let i=0;i<lyrics.lines.length;i++){if(lyrics.lines[i].time<=adjusted)index=i;else break;}
-  if(index===lyricIndex)return;const previous=lyricIndex;lyricIndex=index;
-  const active=Math.max(0,index);const stack=$('#lyric-stack');stack.hidden=false;$('#lyrics-fallback').hidden=true;
+  const stack=$('#lyric-stack'),layoutKey=`${library.settings.layout||'split'}:${library.settings.lyricSize||54}:${innerWidth}:${innerHeight}`;
+  if(index===lyricIndex&&stack.dataset.layoutKey===layoutKey)return;const previous=lyricIndex;lyricIndex=index;stack.dataset.layoutKey=layoutKey;
+  const active=Math.max(0,index);stack.hidden=false;$('#lyrics-fallback').hidden=true;
   const incoming=document.createDocumentFragment();
   for(let i=Math.max(0,active-2);i<=Math.min(lyrics.lines.length-1,active+2);i++){
     let node=stack.querySelector(`[data-line="${i}"]`);
-    if(!node){node=document.createElement('button');node.className='lyric-line';node.dataset.line=i;node.innerHTML=(lyrics.lines[i].text||'♪').split(/\s+/).map(w=>`<span class="lyric-word">${escapeHTML(w)}</span>`).join(' ');node.setAttribute('aria-label',`Seek to ${time(lyrics.lines[i].time)}`);node.onclick=()=>run('seek',Math.max(0,lyrics.lines[i].time-(library.settings.lyricOffset||0)));node.style.opacity='0';node.style.transform=`translateY(${i<active?-90:120}px) scale(.64)`;incoming.append(node);}
+    if(!node){
+      node=document.createElement('button');node.className='lyric-line';node.dataset.line=i;
+      const rows=window.AfterglowTiming.lyricRows(String(lyrics.lines[i].text||'').trim()||'♪'),lastWord=rows.flat().length-1;let wordIndex=0;
+      node.innerHTML=rows.map(row=>`<span class="lyric-row">${row.map(word=>{const index=wordIndex++;return `<span class="lyric-word${index===0?' lyric-lead':''}${index===lastWord?' lyric-emphasis':''}">${escapeHTML(word)}</span>`;}).join(' ')}</span>`).join(' ');
+      node.setAttribute('aria-label',`Seek to ${time(lyrics.lines[i].time)}`);node.onclick=()=>run('seek',Math.max(0,lyrics.lines[i].time-(library.settings.lyricOffset||0)));node.style.opacity='0';node.style.transform=`translateY(${i<active?-90:120}px) scale(.64)`;incoming.append(node);
+    }
   }
   if(incoming.childNodes.length)stack.append(incoming);
   const currentNode=stack.querySelector(`[data-line="${active}"]`);const activeHeight=currentNode?.offsetHeight||90;
@@ -234,6 +240,7 @@ function setupEvents(){
     if(event.code==='Space'){event.preventDefault();toggle();}else if(event.key.toLowerCase()==='f')windowAction('fullscreen');else if(event.key.toLowerCase()==='l')saveSettings({lyrics:library.settings.lyrics===false});else if(event.ctrlKey&&event.key==='ArrowRight'){event.preventDefault();run('next');}else if(event.ctrlKey&&event.key==='ArrowLeft'){event.preventDefault();run('previous',{fromSwipe:true});}else if(event.key==='ArrowRight')run('seek',position()+5);else if(event.key==='ArrowLeft')run('seek',Math.max(0,position()-5));
   });
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)updateLyrics(position());syncLyricClock();});
+  window.addEventListener('resize',()=>{if(lyrics.lines.length)updateLyrics(position());});
   let interactiveState=true;
   document.addEventListener('pointermove',event=>{if(!library.settings.desktopMode||!window.afterglowDesktop)return;const interactive=!!event.target.closest('.interactive,dialog');if(interactive!==interactiveState){interactiveState=interactive;window.afterglowDesktop.window('interactive',interactive);}});
   if('mediaSession' in navigator){for(const [name,fn] of Object.entries({play:()=>run('resume'),pause:()=>run('pause'),nexttrack:()=>run('next'),previoustrack:()=>run('previous'),seekto:event=>run('seek',event.seekTime)})){try{navigator.mediaSession.setActionHandler(name,fn);}catch{}}}

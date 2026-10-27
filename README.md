@@ -109,7 +109,7 @@ npm test        # Run the automated test suite
 npm run preview # Open the UI preview server; not the native playback app
 ```
 
-The current suite has **17 passing tests**, covering persistence, input validation, HTTP security boundaries, queue behavior, swipe recognition, carousel ordering, lyric phrase timing, song metadata stability and ad handling.
+The current suite has **18 passing tests**, covering persistence, input validation, HTTP security boundaries, queue behavior, swipe recognition, carousel ordering, lyric phrase timing and wrapping, song metadata stability and ad handling.
 
 ### Layout of the project
 

@@ -13,5 +13,13 @@
     }
     return output;
   }
-  const api={lyricPhrases};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.AfterglowTiming=api;
+  function lyricRows(text){
+    const words=String(text??'').trim().split(/\s+/).filter(Boolean);
+    if(words.length<2)return words.length?[words]:[];
+    const finalWord=words.pop(),rows=[];
+    for(let i=0;i<words.length;i+=2)rows.push(words.slice(i,i+2));
+    rows.push([finalWord]);
+    return rows;
+  }
+  const api={lyricPhrases,lyricRows};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.AfterglowTiming=api;
 })(typeof window==='undefined'?globalThis:window);

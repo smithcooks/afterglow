@@ -10,7 +10,7 @@ let win,ui,engine,tray,service,store;let sourceMode=false,compact=false,quitting
 let styleUpdate=Promise.resolve(),wasDesktop=false,normalBounds=null;
 let queueFinished=false,lastEndedSequence=-1;
 let adProtection=null,pendingTrackId=null;
-let state={status:'idle',playing:false,position:0,duration:0,volume:65,track:null,error:'',video:false,ad:false};let playSequence=0;
+let state={status:'idle',playing:false,position:0,duration:0,volume:65,track:null,error:'',video:false,ad:false};let playSequence=0,transportSequence=0,transportPending=0;
 const stateFile=path.join(dataDir,'runtime.json');
 const logFile=path.join(dataDir,'app.log');
 function log(...values){try{fs.appendFileSync(logFile,new Date().toISOString()+' '+values.map(x=>x?.stack||String(x)).join(' ')+'\n');}catch{}}
@@ -51,7 +51,11 @@ async function remoteCommand(command,value){
     previous:`document.querySelector('.previous-button')?.click();`,
   };
   if(!commands[command])return;
-  return engine.webContents.executeJavaScript(`(async()=>{${commands[command]};return true})()`,true).catch(error=>log('Player command',command,error.message));
+  const changesTimeline=command!=='volume';
+  if(changesTimeline){transportSequence++;transportPending++;}
+  try{return await engine.webContents.executeJavaScript(`(async()=>{${commands[command]};return true})()`,true);}
+  catch(error){log('Player command',command,error.message);}
+  finally{if(changesTimeline)transportPending--;}
 }
 async function playTrack(raw){
   const sequence=++playSequence;queueFinished=false;const track=cleanTrack(raw);pendingTrackId=track.id;store.remember(track);emit('library',store.snapshot());
@@ -86,11 +90,11 @@ async function navigateQueue(previous=false,ended=false,skipRestart=false){
   if(!state.track?.localId)await remoteCommand(previous?'previous':'next');
 }
 async function poll(){
-  if(pollBusy||quitting||state.track?.localId||!engine||engine.webContents.isDestroyed()||!engine.webContents.getURL().startsWith('https://music.youtube.com'))return;
-  pollBusy=true;const sequence=playSequence;
+  if(pollBusy||transportPending||quitting||state.track?.localId||!engine||engine.webContents.isDestroyed()||!engine.webContents.getURL().startsWith('https://music.youtube.com'))return;
+  pollBusy=true;const sequence=playSequence,transport=transportSequence;
   try{
     const info=await engine.webContents.executeJavaScript(`(()=>{const v=document.querySelector('video');const p=document.querySelector('#movie_player');const m=navigator.mediaSession?.metadata;const d=p?.getVideoData?.()||{};const r=p?.getPlayerResponse?.();const title=d.title||document.querySelector('ytmusic-player-bar .title')?.textContent?.trim()||m?.title||'';const ad=!!(p?.classList.contains('ad-showing')||p?.classList.contains('ad-interrupting')||d.isAd);return {url:location.href,title,ad,artist:d.author||m?.artist||'',album:m?.album||'',image:m?.artwork?.at(-1)?.src||'',id:d.video_id||new URL(location.href).searchParams.get('v')||'',playing:v?!v.paused:false,position:v?.currentTime||0,duration:Number.isFinite(v?.duration)?v.duration:0,ready:v?.readyState||0,ended:v?.ended||false,video: r?.videoDetails?.musicVideoType==='MUSIC_VIDEO_TYPE_OMV'||r?.videoDetails?.musicVideoType==='MUSIC_VIDEO_TYPE_UGC',error:v?.error?.message||document.querySelector('yt-playability-error-supported-renderers')?.textContent?.trim()||'',hasVideo:!!v}})()`);
-    if(sequence!==playSequence)return;
+    if(sequence!==playSequence||transport!==transportSequence)return;
     if(pendingTrackId&&!info.ad){if(info.id!==pendingTrackId)return;if(info.ready>1)pendingTrackId=null;}
     if(queueFinished&&!sourceMode){if(info.playing)remoteCommand('pause');return;}
     if(!state.track&&!info.title)return;

@@ -114,8 +114,12 @@ function updateLyrics(p){
   $('#lyric-credit').textContent=`${lyrics.source||'LRCLIB'} · synced lyrics`;
 }
 async function loadArtistRail(track){
-  if(!track?.artist||railArtist===track.artist||track.localId){renderRail();return;}railArtist=track.artist;const id=++railRequest;
-  try{const data=await request('/api/search?'+new URLSearchParams({q:track.artist}));if(id!==railRequest)return;railTracks=data.tracks.filter(t=>t.id!==current?.id);renderRail();}catch{renderRail();}
+  const artist=track?.localId?'':track?.artist||'';
+  if(railArtist===artist){renderRail();return;}
+  railArtist=artist;const id=++railRequest;railTracks=[];
+  // Saved queue and current artwork must appear before recommendations finish loading.
+  renderRail();if(!artist)return;
+  try{const data=await request('/api/search?'+new URLSearchParams({q:artist}));if(id!==railRequest)return;railTracks=data.tracks.filter(t=>t.id!==current?.id);renderRail();}catch{if(id===railRequest)renderRail();}
 }
 function renderRail(){const candidates=[...library.queue,...railTracks];const seen=new Set([current?.id]);const tracks=candidates.filter(t=>{if(seen.has(t.id))return false;seen.add(t.id);return true;}).slice(0,9);$('#rail-subtitle').textContent=library.queue.length>1?'Up next in your queue':current?.artist?`Songs by ${current.artist}`:'Your music';$('#rail-list').innerHTML=tracks.map(t=>`<button class="rail-track" data-track="${escapeHTML(t.id)}"><img src="${escapeHTML(art(t.image))}" alt=""><span>${escapeHTML(t.title)}<small>${escapeHTML(t.artist)}</small></span></button>`).join('');$$('#rail-list img').forEach(imageFallback);renderCoverFlow(tracks);}
 function renderCoverFlow(tracks){

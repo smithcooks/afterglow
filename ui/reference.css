@@ -35,6 +35,14 @@ body[data-layout] .rail-track>span{font-size:16px;font-weight:600;line-height:1.
 body[data-layout] .rail-track small{font-size:13px;font-weight:500;line-height:1.35;color:#dce4ef;margin-top:2px}
 body[data-layout] .rail-track img{width:36px;height:36px;flex-shrink:0}
 
+/* Keep the split cover 24px beyond the queue; the scene is centered by half its width. */
+@media(min-width:1151px){
+  body[data-layout=split] .scene{left:max(59%,calc(var(--left-column-left) + var(--left-column-width) + 24px + 365px))}
+}
+@media(min-width:1001px) and (max-width:1150px){
+  body[data-layout=split] .scene{left:max(62%,calc(var(--left-column-left) + var(--left-column-width) + 24px + 315px))}
+}
+
 body[data-layout=albums] .scene{left:var(--reference-center);top:35.2%;width:600px;height:270px;align-items:start}
 body[data-layout=albums] .cover-section{align-self:start}
 body[data-layout=albums] .cover-play{display:none}
